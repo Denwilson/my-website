@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Work Log Management System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <style>
+        body { background-color: #f8f9fa; }
+        .card { border-radius: 12px; }
+        .disabled-row {
+            background-color: #f1f3f5 !important;
+            opacity: 0.85;
+        }
+        .payment-details {
+            font-size: 0.8rem;
+            color: #198754;
+            font-weight: 600;
+        }
+        .box-count {
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container my-5">
+        <div class="row g-4">
+            <div class="col-lg-4">
+                <div class="card shadow-sm border-0 sticky-top" style="top: 20px;">
+                    <div class="card-header bg-primary text-white py-3">
+                        <h5 class="mb-0"><i class="bi bi-plus-circle-fill me-2"></i>Log Offloading Work</h5>
+                    </div>
+                    <div class="card-body p-4">
+                        <form id="workLogForm">
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Employee Name</label>
+                                <input type="text" id="employeeName" class="form-control" placeholder="e.g., John Doe" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Vehicle Number Plate</label>
+                                <input type="text" id="vehiclePlate" class="form-control" placeholder="e.g., KAA 123A" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Date of Work</label>
+                                <input type="date" id="dateWorked" class="form-control" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Total Boxes Removed</label>
+                                <input type="number" id="totalBoxes" class="form-control" min="0" placeholder="Total offloaded boxes" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Boxes Supposed to be Paid</label>
+                                <input type="number" id="paidBoxes" class="form-control" min="0" placeholder="Boxes to pay for" required>
+                            </div>
+                            <button type="submit" class="btn btn-success w-100 py-2 fw-bold">Save Record</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-8">
+                <div class="card shadow-sm border-0">
+                    <div class="card-header bg-dark text-white py-3 d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="bi bi-collection-fill me-2"></i>Saved Work Logs <small class="text-muted fs-6">(Sorted Newest to Oldest)</small></h5>
+                        <button class="btn btn-outline-danger btn-sm text-white" onclick="clearAllData()">Clear All Records</button>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Employee / Vehicle</th>
+                                        <th>Date Worked</th>
+                                        <th>Boxes Layout</th>
+                                        <th>Status & Payment Details</th>
+                                        <th class="text-center">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="logTableBody">
+                                    </tbody>
+                            </table>
+                        </div>
+                        <div id="noDataMessage" class="text-center py-5 text-muted">
+                            <i class="bi bi-folder-x display-4 d-block mb-2"></i>
+                            No records found. Enter details on the left to save.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Set default date to today's date automatically
+        document.getElementById('dateWorked').valueAsDate = new Date();
+
+        // Listen for form submission
+        document.getElementById('workLogForm').addEventListener('submit', function(e) {
+            e.preventDefault(); 
+
+            const employeeName = document.getElementById('employeeName').value;
+            const vehiclePlate = document.getElementById('vehiclePlate').value;
+            const dateWorked = document.getElementById('dateWorked').value;
+            const totalBoxes = parseInt(document.getElementById('totalBoxes').value, 10);
+            const paidBoxes = parseInt(document.getElementById('paidBoxes').value, 10);
+
+            const newLog = {
+                id: Date.now(), 
+                employeeName,
+                vehiclePlate,
+                dateWorked, 
+                totalBoxes,    
+                paidBoxes,     
+                isPaid: false,
+                amountPaid: 0,    
+                datePaid: null    
+            };
+
+            let currentLogs = JSON.parse(localStorage.getItem('workLogs')) || [];
+            currentLogs.push(newLog);
+            localStorage.setItem('workLogs', JSON.stringify(currentLogs));
+
+            // Clear entry fields
+            document.getElementById('employeeName').value = '';
+            document.getElementById('vehiclePlate').value = '';
+            document.getElementById('totalBoxes').value = '';
+            document.getElementById('paidBoxes').value = '';
+
+            displayLogs();
+        });
+
+        // Function to display and sort the stored records
+        function displayLogs() {
+            const currentLogs = JSON.parse(localStorage.getItem('workLogs')) || [];
+            const tableBody = document.getElementById('logTableBody');
+            const noDataMessage = document.getElementById('noDataMessage');
+
+            tableBody.innerHTML = '';
+
+            if (currentLogs.length === 0) {
+                noDataMessage.classList.remove('d-none');
+                return;
+            } else {
+                noDataMessage.classList.add('d-none');
+            }
+
+            // Sort logs strictly by date worked (Newest Date first)
+            currentLogs.sort((a, b) => {
+                if (a.dateWorked < b.dateWorked) return 1;
+                if (a.dateWorked > b.dateWorked) return -1;
+                return 0;
+            });
+
+            // Loop through the cleanly sorted entries
+            currentLogs.forEach(log => {
+                let rowClass = "";
+                let statusAndPaymentCell = "";
+                let deleteActionCell = "<td></td>"; 
+
+                if (log.isPaid) {
+                    rowClass = "class='disabled-row'";
+                    
+                    statusAndPaymentCell = `
+                        <div>
+                            <span class="badge bg-success text-uppercase mb-1"><i class="bi bi-check-circle-fill me-1"></i> Paid</span>
+                        </div>
+                        <div class="payment-details">
+                            <i class="bi bi-cash-stack me-1"></i> Total: <strong>Ksh ${Number(log.amountPaid).toLocaleString()}</strong><br>
+                            <i class="bi bi-calendar-check me-1"></i> Paid On: ${formatDateDisplay(log.datePaid)}
+                        </div>`;
+                    
+                    deleteActionCell = `
+                        <td class="text-center">
+                            <button class="btn btn-sm btn-danger" onclick="deleteIndividualRecord(${log.id})" title="Delete entry">
+                                <i class="bi bi-trash-fill"></i>
+                            </button>
+                        </td>`;
+                } else {
+                    statusAndPaymentCell = `
+                        <button class="btn btn-sm btn-outline-warning text-dark fw-semibold" onclick="markAsPaid(${log.id}, ${log.paidBoxes})">
+                            <i class="bi bi-hourglass-split me-1"></i> Mark Paid
+                        </button>`;
+                }
+
+                const row = `
+                    <tr ${rowClass}>
+                        <td>
+                            <div class="fw-bold text-dark">${escapeHtml(log.employeeName)}</div>
+                            <small class="text-muted text-uppercase font-monospace bg-light border px-1 rounded" style="font-size: 0.75rem;">
+                                ${escapeHtml(log.vehiclePlate)}
+                            </small>
+                        </td>
+                        <td class="text-secondary fw-semibold small">${formatDateDisplay(log.dateWorked)}</td>
+                        <td class="box-count">
+                            <span class="text-muted small">Removed:</span> <strong class="text-dark">${log.totalBoxes}</strong><br>
+                            <span class="text-muted small">To Pay:</span> <strong class="text-primary">${log.paidBoxes}</strong>
+                        </td>
+                        <td>${statusAndPaymentCell}</td>
+                        ${deleteActionCell}
+                    </tr>
+                `;
+                tableBody.innerHTML += row;
+            });
+        }
+
+        // Action Function: Instant payout calculation based strictly on 1 KES per 1 paidBox
+        function markAsPaid(recordId, paidBoxes) {
+            const totalEarnings = paidBoxes * 1; 
+
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            const day = String(today.getDate()).padStart(2, '0');
+            const stringifiedDatePaid = `${year}-${month}-${day}`;
+
+            let currentLogs = JSON.parse(localStorage.getItem('workLogs')) || [];
+            
+            currentLogs = currentLogs.map(log => {
+                if (log.id === recordId) {
+                    log.isPaid = true;
+                    log.amountPaid = totalEarnings;
+                    log.datePaid = stringifiedDatePaid;
+                }
+                return log;
+            });
+
+            localStorage.setItem('workLogs', JSON.stringify(currentLogs));
+            displayLogs();
+        }
+
+        // Action Function: Safely delete an individual record
+        function deleteIndividualRecord(recordId) {
+            if (confirm("Are you sure you want to permanently delete this paid work record?")) {
+                let currentLogs = JSON.parse(localStorage.getItem('workLogs')) || [];
+                currentLogs = currentLogs.filter(log => log.id !== recordId);
+                
+                localStorage.setItem('workLogs', JSON.stringify(currentLogs));
+                displayLogs();
+            }
+        }
+
+        // Helper function to turn "YYYY-MM-DD" into "DD/MM/YYYY" display
+        function formatDateDisplay(dateString) {
+            if (!dateString) return "";
+            const parts = dateString.split('-');
+            if (parts.length === 3) {
+                return `${parts[2]}/${parts[1]}/${parts[0]}`; 
+            }
+            return dateString;
+        }
+
+        // Helper function to prevent script injection
+        function escapeHtml(str) {
+            return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+
+        // Wipes all data
+        function clearAllData() {
+            if (confirm("Warning: Are you sure you want to clear the entire record database on this device? This cannot be undone.")) {
+                localStorage.removeItem('workLogs');
+                displayLogs();
+            }
+        }
+
+        // Run automatically on open
+        displayLogs();
+    </script>
+</body>
+</html>
